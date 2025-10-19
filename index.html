@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PaySheet — Terminal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- (Optionnel) polyfill dialog pour vieux Safari -->
+  <link rel="stylesheet" href="vendor/dialog-polyfill.css" />
+  <meta name="theme-color" content="#0f1117" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">PaySheet — Terminal</div>
+    <button id="btnSettings" class="ghost">Paramètres</button>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <label for="amount">Montant (€)</label>
+      <input
+        id="amount"
+        inputmode="decimal"
+        placeholder="0,00"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      />
+
+      <!-- Pavé numérique -->
+      <div class="numpad" aria-label="Clavier numérique">
+        <button data-key="7">7</button>
+        <button data-key="8">8</button>
+        <button data-key="9">9</button>
+        <button data-key="C" class="warn" aria-label="Effacer tout">C</button>
+
+        <button data-key="4">4</button>
+        <button data-key="5">5</button>
+        <button data-key="6">6</button>
+        <button data-key="⌫" aria-label="Effacer un caractère">⌫</button>
+
+        <button data-key="1">1</button>
+        <button data-key="2">2</button>
+        <button data-key="3">3</button>
+        <button data-key="00">00</button>
+
+        <button data-key="," aria-label="Virgule">,</button>
+        <button data-key="0">0</button>
+        <button data-key="." aria-label="Point">.</button>
+        <button id="btnGen" class="primary" aria-label="Générer le QR">Valider</button>
+      </div>
+    </section>
+
+    <section class="panel qwrap" id="qrWrap" hidden>
+      <div id="qr"></div>
+      <div class="actions">
+        <button id="btnFullscreen">Plein écran</button>
+        <button id="btnRetry" class="ghost">Nouveau QR</button>
+      </div>
+      <p class="hint">
+        Le client scanne ce QR. Si sa banque ne s’ouvre pas automatiquement,
+        une page intermédiaire proposera un sélecteur de banques et un bouton pour copier IBAN + montant.
+      </p>
+    </section>
+  </main>
+
+  <!-- Dialog Paramètres -->
+  <dialog id="dlg">
+    <h3>Paramètres commerçant</h3>
+
+    <label>Nom du bénéficiaire</label>
+    <input id="sName" placeholder="Ex : Atelier Martin" />
+
+    <label>IBAN</label>
+    <input id="sIban" placeholder="FR76..." maxlength="34" />
+
+    <div class="actions">
+      <button id="save" class="primary">Enregistrer</button>
+      <button id="close" class="ghost">Fermer</button>
+    </div>
+
+    <p class="muted">
+      En cas de changement d’appareil, vous ressaisirez ici Nom et IBAN après réactivation de votre licence.
+    </p>
+  </dialog>
+
+  <!-- Librairies locales -->
+  <script defer src="vendor/qrcode.min.js"></script>
+  <script defer src="vendor/dialog-polyfill.js"></script>
+  <script defer src="app.js"></script>
+</body>
+</html>
