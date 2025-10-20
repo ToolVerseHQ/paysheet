@@ -1,35 +1,224 @@
-:root{--bg:#0f1117;--panel:#161b22;--text:#e6edf3;--muted:#8b98a5;--accent:#7c5cff;--border:#242a34;--warn:#b42318}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter}
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:#0e1116}
-.brand{font-weight:600}
-.container{width:min(900px,92vw);margin:20px auto;display:grid;gap:16px}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
-label{display:block;margin-bottom:6px;color:var(--muted);font-size:13px}
-
-/* Champ montant bien grand (anti-zoom iOS) */
-input{width:100%;padding:14px 12px;border-radius:10px;border:1px solid var(--border);background:#0f141c;color:var(--text);font-size:22px}
-
-/* Boutons */
-button{padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:#131a23;color:var(--text);cursor:pointer;font-size:16px}
-button.primary{background:var(--accent);border-color:transparent}
-button.ghost{background:#131a2300}
-button.warn{background:#2a1311;border-color:#412020;color:#ffd4cf}
-.actions{display:flex;gap:10px;margin-top:12px}
-
-/* Numpad responsive (touch-friendly) */
-.numpad{
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap:10px;
-  margin-top:14px;
+/* Base */
+:root {
+  --bg: #1e1e1e;
+  --panel: #2b2b2b;
+  --ink: #fff;
+  --muted: #bfbfbf;
+  --accent: #0078D7;
+  --danger: #b54a4a;
+  --shadow: 0 0 20px rgba(0,0,0,0.4);
 }
-.numpad button{min-height:56px;}
 
-/* QR zone */
-.qwrap{display:flex;flex-direction:column;align-items:center}
-#qr canvas,#qr img{width:280px;height:280px}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-dialog{border:0;border-radius:12px;background:var(--panel);color:var(--text);padding:18px;width:min(480px,92vw)}
-.muted{color:var(--muted);font-size:13px;margin-top:10px}
-.hint{color:var(--muted);font-size:14px;margin:10px 0 0}
+/* Terminal */
+h1 {
+  position: absolute;
+  top: 18px;
+  font-size: 1.2rem;
+}
+
+#terminal {
+  position: relative;
+  background: var(--panel);
+  border-radius: 12px;
+  width: 340px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-top: 40px;
+}
+
+#settings-btn{
+  position:absolute;
+  right:-12px;
+  top:-12px;
+  background: var(--panel);
+  border:1px solid #444;
+  border-radius:50%;
+  width:36px; height:36px;
+  color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  box-shadow: var(--shadow);
+}
+
+input#amount{
+  width:100%;
+  font-size:2rem;
+  text-align:right;
+  background:#111;
+  color:#0f0;
+  border:none;
+  border-radius:8px;
+  padding:12px;
+  margin-bottom:12px;
+}
+
+.keypad{
+  display:grid;
+  grid-template-columns: repeat(3,1fr);
+  gap:10px;
+}
+.keypad button{
+  font-size:1.2rem;
+  padding:12px 0;
+  border:none;
+  border-radius:8px;
+  background:#444;
+  color:#fff;
+  cursor:pointer;
+}
+.keypad button:hover{ background:#5a5a5a; }
+.keypad .danger{ background: var(--danger); }
+.keypad .danger:hover{ opacity:.9; }
+
+#validate{
+  margin-top:14px;
+  width:100%;
+  border:none;
+  border-radius:8px;
+  background: var(--accent);
+  color:#fff;
+  padding:12px;
+  font-size:1.1rem;
+  cursor:pointer;
+}
+
+.section-title{
+  margin-top:16px;
+  font-size:.95rem;
+  color: var(--muted);
+  text-align:center;
+}
+
+.qrcode{
+  position: relative;
+  width:256px; height:256px;
+  margin: 10px auto 0;
+}
+.qrcode.small{ width:180px; height:180px; }
+
+.qrcode .overlay{
+  position:absolute;
+  left:50%; top:50%;
+  transform: translate(-50%, -50%);
+  width:60px; height:60px;
+  background:#fff;
+  border-radius:10px;
+  padding:6px;
+}
+.qrcode.small .overlay{
+  width:44px; height:44px; padding:5px;
+}
+
+#fallback-link{ text-align:center; margin-top:8px; }
+#fallback-link a{ color:#9bd0ff; text-decoration:none; }
+#fallback-link a:hover{ text-decoration:underline; }
+
+.info{
+  margin-top:14px;
+  font-size:.9rem;
+  color: var(--muted);
+  text-align:center;
+}
+
+/* Modale */
+#modal{
+  display:none;
+  position:fixed; inset:0;
+  background: rgba(0,0,0,0.6);
+  align-items:center; justify-content:center;
+}
+#modal-content{
+  background: var(--panel);
+  width:320px;
+  padding:18px;
+  border-radius:12px;
+  box-shadow: var(--shadow);
+  text-align:center;
+}
+#modal-content h3{ margin:0 0 10px; }
+#modal-content input{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  margin:6px 0;
+}
+#close-modal{
+  margin-top:8px;
+  width:100%;
+  background: var(--accent);
+  color:#fff;
+  border:none; border-radius:8px;
+  padding:10px;
+  cursor:pointer;
+}
+
+/* Page fallback */
+.page-fallback{
+  align-items:flex-start;
+  padding: 30px 10px;
+}
+.fallback-card{
+  width: min(720px, 100%);
+  background: var(--panel);
+  border-radius:12px;
+  padding:18px;
+  box-shadow: var(--shadow);
+}
+.fallback-card h2{ margin:0 0 10px; }
+
+.payinfo{
+  display:grid;
+  gap:6px;
+  background:#222;
+  border:1px solid #333;
+  border-radius:8px;
+  padding:12px;
+  font-size:.95rem;
+}
+.copy-row{
+  margin:10px 0 6px;
+  display:flex; gap:8px; flex-wrap:wrap;
+}
+.copy-row button{
+  flex:1 1 160px;
+  background:#444; color:#fff;
+  border:none; border-radius:8px;
+  padding:10px; cursor:pointer;
+}
+.copy-row button:hover{ background:#5a5a5a; }
+
+.banks .bank-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px,1fr));
+  gap:8px;
+  margin-top:8px;
+}
+.banks .bank{
+  display:block; text-align:center;
+  background:#3a3a3a; color:#fff;
+  text-decoration:none;
+  padding:10px 8px;
+  border-radius:8px;
+  border:1px solid #4a4a4a;
+}
+.banks .bank:hover{ background:#4b4b4b; }
+.banks .hint{
+  margin-top:6px;
+  color: var(--muted);
+  font-size:.9rem;
+  text-align:center;
+}
+.small{ font-size:.85rem; }
