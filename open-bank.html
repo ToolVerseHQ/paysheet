@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Paiement — Ouvrir votre banque</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="qrcode.min.js"></script>
+</head>
+<body class="page-fallback">
+  <div class="fallback-card">
+    <h2>Ouvrir votre banque</h2>
+
+    <div id="payinfo" class="payinfo"></div>
+
+    <div class="copy-row">
+      <button onclick="copyText(data.iban)">Copier IBAN</button>
+      <button onclick="copyText(data.amount)">Copier Montant</button>
+      <button onclick="copyText(data.remi)">Copier Motif</button>
+    </div>
+
+    <div class="banks">
+      <div class="section-title">Sélectionnez votre banque</div>
+      <div class="bank-grid">
+        <!-- Les “app schemes” varient d’un modèle à l’autre.
+             On tente d’abord l’app ; si elle n’est pas installée, le lien web s’ouvre. -->
+        <a class="bank" href="#" data-app="revolut://home" data-web="https://revolut.com/app">Revolut</a>
+        <a class="bank" href="#" data-app="lydia://app"     data-web="https://lydia-app.com">Lydia</a>
+        <a class="bank" href="#" data-web="https://mabanque.bnpparibas/">BNP Paribas</a>
+        <a class="bank" href="#" data-web="https://www.credit-agricole.fr/">Crédit Agricole</a>
+        <a class="bank" href="#" data-web="https://particuliers.sg.fr/">Société Générale</a>
+        <a class="bank" href="#" data-web="https://www.boursobank.com/">BoursoBank</a>
+        <a class="bank" href="#" data-web="https://www.hellobank.fr/">Hello bank!</a>
+        <a class="bank" href="#" data-web="https://www.labanquepostale.fr/">Banque Postale</a>
+        <a class="bank" href="#" data-web="https://www.lcl.fr/">LCL</a>
+        <a class="bank" href="#" data-web="https://n26.com/">N26</a>
+      </div>
+      <div class="hint">Si l’app ne s’ouvre pas, utilisez le site web de votre banque puis “Nouveau virement”.</div>
+    </div>
+
+    <div class="section-title">QR SEPA (relance)</div>
+    <div id="qr-sepa" class="qrcode"></div>
+
+    <p class="info small">
+      Astuce : après avoir copié **IBAN, Montant et Motif**, collez-les dans votre app/banque.  
+      Certaines banques supportent directement ce **QR SEPA** via leur app.
+    </p>
+  </div>
+
+  <script>
+    // Lecture des paramètres
+    const params = new URLSearchParams(location.search);
+    const data = {
+      iban:   params.get("iban")   || "",
+      name:   params.get("name")   || "BENEFICIAIRE",
+      bic:    params.get("bic")    || "",
+      amount: params.get("amount") || "0.00",
+      remi:   params.get("remi")   || "PaySheet"
+    };
+
+    // Affichage infos paiement
+    document.getElementById("payinfo").innerHTML = `
+      <div><b>Bénéficiaire :</b> ${escapeHtml(data.name)}</div>
+      <div><b>IBAN :</b> ${formatIban(data.iban)}</div>
+      <div><b>BIC :</b> ${escapeHtml(data.bic || "—")}</div>
+      <div><b>Montant :</b> ${Number(data.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</div>
+      <div><b>Motif :</b> ${escapeHtml(data.remi)}</div>
+    `;
+
+    // QR SEPA sur la page fallback aussi
+    const sepaPayload = buildEpcSct({
+      iban: data.iban, name: data.name, bic: data.bic,
+      amount: data.amount, remi: data.remi
+    });
+    const qrBox = document.getElementById("qr-sepa");
+    new QRCode(qrBox, { text: sepaPayload, width: 256, height: 256, colorDark:"#000", colorLight:"#fff", correctLevel: QRCode.CorrectLevel.H });
+
+    // Ajouter logo si dispo (optionnel)
+    const overlay = document.createElement("img");
+    overlay.src = "logo.png";
+    overlay.className = "overlay";
+    qrBox.style.position = "relative";
+    qrBox.appendChild(overlay);
+
+    // Click banque : on tente l’app d’abord puis le web
+    document.querySelectorAll(".bank").forEach(a=>{
+      a.addEventListener("click", (e)=>{
+        e.preventDefault();
+        const app = a.getAttribute("data-app");
+        const web = a.getAttribute("data-web") || "#";
+        if (app) {
+          // Tente d’ouvrir l’app ; si rien après 800ms => web
+          let jumped = false;
+          const t = setTimeout(()=>{ if(!jumped) location.href = web; }, 800);
+          location.href = app;
+          setTimeout(()=>{ jumped=true; clearTimeout(t); }, 1200);
+        } else {
+          location.href = web;
+        }
+      });
+    });
+
+    function copyText(t){
+      navigator.clipboard.writeText(String(t)).then(()=>alert("Copié !")).catch(()=>alert("Impossible de copier"));
+    }
+
+    function formatIban(iban){
+      return iban.replace(/\s+/g,"").replace(/(.{4})/g,"$1 ").trim();
+    }
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function buildEpcSct({iban,name,bic,amount,remi}){
+      const amt = Number(amount || 0).toFixed(2);
+      const lines = [
+        "BCD","001","1","SCT",
+        (bic || ""),
+        (name || "").substring(0,70),
+        iban.replace(/\s+/g, ""),
+        `EUR${amt}`,
+        "","",
+        (remi || "PaySheet")
+      ];
+      return lines.join("\n");
+    }
+  </script>
+</body>
+</html>
