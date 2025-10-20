@@ -1,92 +1,196 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PaySheet — Terminal</title>
-  <link rel="stylesheet" href="styles.css" />
-  <!-- (Optionnel) polyfill dialog pour vieux Safari -->
-  <link rel="stylesheet" href="vendor/dialog-polyfill.css" />
-  <meta name="theme-color" content="#0f1117" />
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="qrcode.min.js"></script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">PaySheet — Terminal</div>
-    <button id="btnSettings" class="ghost">Paramètres</button>
-  </header>
+  <h1>PaySheet — Terminal</h1>
 
-  <main class="container">
-    <section class="panel">
-      <label for="amount">Montant (€)</label>
-      <input
-        id="amount"
-        inputmode="decimal"
-        placeholder="0,00"
-        autocomplete="off"
-        autocorrect="off"
-        spellcheck="false"
-      />
+  <div id="terminal">
+    <!-- Bouton Paramètres, déplacé hors afficheur -->
+    <button id="settings-btn" title="Paramètres" onclick="openSettings()">⚙️</button>
 
-      <!-- Pavé numérique -->
-      <div class="numpad" aria-label="Clavier numérique">
-        <button data-key="7">7</button>
-        <button data-key="8">8</button>
-        <button data-key="9">9</button>
-        <button data-key="C" class="warn" aria-label="Effacer tout">C</button>
+    <input id="amount" type="text" value="0,00" readonly />
 
-        <button data-key="4">4</button>
-        <button data-key="5">5</button>
-        <button data-key="6">6</button>
-        <button data-key="⌫" aria-label="Effacer un caractère">⌫</button>
-
-        <button data-key="1">1</button>
-        <button data-key="2">2</button>
-        <button data-key="3">3</button>
-        <button data-key="00">00</button>
-
-        <button data-key="," aria-label="Virgule">,</button>
-        <button data-key="0">0</button>
-        <button data-key="." aria-label="Point">.</button>
-        <button id="btnGen" class="primary" aria-label="Générer le QR">Valider</button>
-      </div>
-    </section>
-
-    <section class="panel qwrap" id="qrWrap" hidden>
-      <div id="qr"></div>
-      <div class="actions">
-        <button id="btnFullscreen">Plein écran</button>
-        <button id="btnRetry" class="ghost">Nouveau QR</button>
-      </div>
-      <p class="hint">
-        Le client scanne ce QR. Si sa banque ne s’ouvre pas automatiquement,
-        une page intermédiaire proposera un sélecteur de banques et un bouton pour copier IBAN + montant.
-      </p>
-    </section>
-  </main>
-
-  <!-- Dialog Paramètres -->
-  <dialog id="dlg">
-    <h3>Paramètres commerçant</h3>
-
-    <label>Nom du bénéficiaire</label>
-    <input id="sName" placeholder="Ex : Atelier Martin" />
-
-    <label>IBAN</label>
-    <input id="sIban" placeholder="FR76..." maxlength="34" />
-
-    <div class="actions">
-      <button id="save" class="primary">Enregistrer</button>
-      <button id="close" class="ghost">Fermer</button>
+    <div class="keypad">
+      <button onclick="press('7')">7</button>
+      <button onclick="press('8')">8</button>
+      <button onclick="press('9')">9</button>
+      <button onclick="press('4')">4</button>
+      <button onclick="press('5')">5</button>
+      <button onclick="press('6')">6</button>
+      <button onclick="press('1')">1</button>
+      <button onclick="press('2')">2</button>
+      <button onclick="press('3')">3</button>
+      <button onclick="press('0')">0</button>
+      <button onclick="press('00')">00</button>
+      <button class="danger" onclick="clearAmount()">C</button>
     </div>
 
-    <p class="muted">
-      En cas de changement d’appareil, vous ressaisirez ici Nom et IBAN après réactivation de votre licence.
-    </p>
-  </dialog>
+    <button id="validate" onclick="generateAll()">Valider</button>
 
-  <!-- Librairies locales -->
-  <script defer src="vendor/qrcode.min.js"></script>
-  <script defer src="vendor/dialog-polyfill.js"></script>
-  <script defer src="app.js"></script>
+    <!-- QR SEPA principal (EPC SCT) -->
+    <div class="section-title">QR SEPA (virement) — scan avec l’app bancaire</div>
+    <div id="qrcode-sepa" class="qrcode"></div>
+
+    <!-- QR Fallback (URL) -->
+    <div class="section-title">Si rien ne s’ouvre : utilisez ce QR ou le lien ci-dessous</div>
+    <div id="qrcode-fallback" class="qrcode small"></div>
+    <div id="fallback-link"></div>
+
+    <p class="info">
+      1) Les applis bancaires compatibles SEPA QR ouvrent le virement pré-rempli (IBAN, bénéficiaire, montant, motif).<br/>
+      2) Si ce n’est pas le cas, scannez le QR “Fallback” (ou cliquez le lien) : vous serez redirigé vers une page avec un **sélecteur de banque** et des **boutons pour copier IBAN / montant / motif**.
+    </p>
+  </div>
+
+  <!-- MODALE PARAMÈTRES -->
+  <div id="modal">
+    <div id="modal-content">
+      <h3>Paramètres</h3>
+      <input type="text" id="benef-name" placeholder="Nom bénéficiaire (ex: TOOLVERSE)"/>
+      <input type="text" id="benef-bic"  placeholder="BIC (optionnel)"/>
+      <input type="text" id="iban-input" placeholder="IBAN (FR…)"/>
+      <button id="close-modal" onclick="saveSettings()">Enregistrer</button>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- ÉTAT & PARAMS ---------- */
+    let cfg = JSON.parse(localStorage.getItem("paysheet_cfg") || "{}");
+    if (!cfg.iban) cfg.iban = "FR7630006000011234567890189";
+    if (!cfg.name) cfg.name = "TOOLVERSE";
+    if (!cfg.bic)  cfg.bic  = ""; // optionnel
+    let amountRaw = "";
+
+    /* ---------- CLAVIER ---------- */
+    function press(n){
+      amountRaw += n;
+      document.getElementById("amount").value =
+        parseFloat(amountRaw || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 });
+    }
+    function clearAmount(){
+      amountRaw = "";
+      document.getElementById("amount").value = "0,00";
+      clearQRCodes();
+    }
+
+    function clearQRCodes(){
+      document.getElementById("qrcode-sepa").innerHTML = "";
+      document.getElementById("qrcode-fallback").innerHTML = "";
+      document.getElementById("fallback-link").innerHTML = "";
+    }
+
+    /* ---------- EPC SCT (SEPA QR) ---------- */
+    // Format officiel (lignes séparées par \n)
+    // BCD\n001\n1\nSCT\n<BIC>\n<NAME>\n<IBAN>\n<EURAMOUNT>\n\n\n<REMI>
+    function buildEpcSct({iban,name,bic,amount,remi}){
+      const amt = Number(amount || 0).toFixed(2);
+      const lines = [
+        "BCD","001","1","SCT",
+        (bic || ""),
+        (name || "").substring(0,70),
+        iban.replace(/\s+/g, ""),
+        `EUR${amt}`,
+        "", "", // purpose + creditor ref (optionnels)
+        (remi || "PaySheet")
+      ];
+      return lines.join("\n");
+    }
+
+    /* ---------- Fallback URL ---------- */
+    function buildFallbackURL({iban,name,bic,amount,remi}){
+      const params = new URLSearchParams({
+        iban: iban.replace(/\s+/g,""),
+        name, bic,
+        amount: Number(amount||0).toFixed(2),
+        remi
+      });
+      return location.origin + location.pathname.replace(/[^/]+$/,"") + "open-bank.html?" + params.toString();
+    }
+
+    /* ---------- GÉNÉRATION DES 2 QR ---------- */
+    function generateAll(){
+      clearQRCodes();
+
+      const montant = parseFloat(amountRaw || 0).toFixed(2);
+      const remi = "Paiement PaySheet";
+
+      // 1) QR SEPA
+      const payloadEpc = buildEpcSct({
+        iban: cfg.iban, name: cfg.name, bic: cfg.bic,
+        amount: montant, remi
+      });
+      const boxSepa = document.getElementById("qrcode-sepa");
+      new QRCode(boxSepa, {
+        text: payloadEpc,
+        width: 256, height: 256,
+        colorDark: "#000", colorLight: "#fff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      addLogo(boxSepa);
+
+      // 2) QR Fallback (URL → open-bank.html)
+      const url = buildFallbackURL({
+        iban: cfg.iban, name: cfg.name, bic: cfg.bic,
+        amount: montant, remi
+      });
+      const boxFallback = document.getElementById("qrcode-fallback");
+      new QRCode(boxFallback, {
+        text: url,
+        width: 180, height: 180,
+        colorDark: "#000", colorLight: "#fff",
+        correctLevel: QRCode.CorrectLevel.Q
+      });
+      addLogo(boxFallback, 44, 44);
+
+      // Lien cliquable sous le QR fallback
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank";
+      a.textContent = "➡️ Ouvrir la page de redirection (sélection de banque)";
+      document.getElementById("fallback-link").appendChild(a);
+    }
+
+    function addLogo(container, w=60, h=60){
+      const overlay = document.createElement("img");
+      overlay.src = "logo.png";
+      overlay.className = "overlay";
+      overlay.style.width = w + "px";
+      overlay.style.height = h + "px";
+      container.style.position = "relative";
+      container.appendChild(overlay);
+    }
+
+    /* ---------- MODALE PARAMS ---------- */
+    function openSettings(){
+      document.getElementById("iban-input").value  = cfg.iban || "";
+      document.getElementById("benef-name").value  = cfg.name || "";
+      document.getElementById("benef-bic").value   = cfg.bic  || "";
+      document.getElementById("modal").style.display = "flex";
+    }
+    function saveSettings(){
+      const iban = document.getElementById("iban-input").value.trim();
+      const name = document.getElementById("benef-name").value.trim();
+      const bic  = document.getElementById("benef-bic").value.trim().toUpperCase();
+
+      if(!/^([A-Z]{2}\d{2}[A-Z0-9]{11,30})$/.test(iban.replace(/\s+/g,""))){
+        alert("IBAN invalide");
+        return;
+      }
+      cfg = { iban, name: name || "BENEFICIAIRE", bic };
+      localStorage.setItem("paysheet_cfg", JSON.stringify(cfg));
+      document.getElementById("modal").style.display = "none";
+      alert("Paramètres enregistrés.");
+    }
+    window.addEventListener("click", (e)=>{
+      if(e.target === document.getElementById("modal")){
+        document.getElementById("modal").style.display = "none";
+      }
+    });
+  </script>
 </body>
 </html>
